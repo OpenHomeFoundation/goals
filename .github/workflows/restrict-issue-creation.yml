@@ -9,7 +9,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       issues: write
-      members: read
     steps:
       - name: Check if issue creator is org member
         uses: actions/github-script@v7
