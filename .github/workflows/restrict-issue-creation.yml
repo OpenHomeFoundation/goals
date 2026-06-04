@@ -1,4 +1,4 @@
-name: Restrict issue creation to Organization members
+name: Restrict issue creation to organization members
 
 on:
   issues:
