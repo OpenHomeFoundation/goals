@@ -1,4 +1,4 @@
-name: Restrict issue creation to organization members
+name: Restrict issue creation to Organization members
 
 on:
   issues:
@@ -42,13 +42,32 @@ jobs:
 
             // User is not an org member
             console.log(`${issueCreator} is not an organization member - closing issue`);
+
+            const commentBody = [
+              `Hi @${issueCreator},`,
+              '',
+              'Thank you for your interest in the Open Home Foundation goals!',
+              '',
+              'This repository is restricted to Open Home Foundation staff and authorized contributors only. Community members cannot directly create goals.',
+              '',
+              '**How to contribute your ideas:**',
+              "1. 🚀 Submit your ideas to the relevant project's feature request channels",
+              '2. 🗳️ Vote and discuss on existing feature requests',
+              '3. 👀 The product team regularly reviews popular requests and creates roadmap opportunities based on community needs',
+              '',
+              'For feature request links, please refer to the [roadmap repository](https://github.com/OpenHomeFoundation/roadmap).',
+              '',
+              'If you believe you should have access to create goals, please contact the Open Home Foundation team.',
+              '',
+              '*This issue will now be automatically closed.*'
+            ].join('\n');
             
             // Add a comment explaining why the issue is being closed
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: `Hi @${issueCreator},\n\nThank you for your interest in the Open Home Foundation goals!\n\nThis repository is restricted to Open Home Foundation staff and authorized contributors only. Community members cannot directly create goals.\n\n**How to contribute your ideas:**\n1. 🚀 Submit your ideas to the relevant project's feature request channels\n2. 🗳️ Vote and discuss on existing feature requests\n3. 👀 The product team regularly reviews popular requests and creates roadmap opportunities based on community needs\n\nFor feature request links, please refer to the [roadmap repository](https://github.com/OpenHomeFoundation/roadmap).\n\nIf you believe you should have access to create goals, please contact the Open Home Foundation team.\n\n*This issue will now be automatically closed.*`
+              body: commentBody
             });
             
             // Close the issue
