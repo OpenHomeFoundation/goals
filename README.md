@@ -1,2 +1,2 @@
-# goals
-The Open Home Foundation yearly goals 
+# Open Home Foundation Goals
+The Open Home Foundation's yearly goals 
