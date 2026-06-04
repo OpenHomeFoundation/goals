@@ -20,41 +20,55 @@ jobs:
 
             console.log(`Checking if ${issueCreator} is a member of ${org}`);
 
+            let isOrgMember = false;
+
             try {
-              // Check if user is an organization member
-              await github.rest.orgs.checkMembershipForUser({
+              // Check membership (includes private org membership with appropriate permissions)
+              const membership = await github.rest.orgs.getMembershipForUser({
                 org: org,
                 username: issueCreator
               });
-              
-              console.log(`${issueCreator} is an organization member - issue will remain open`);
-              
+              isOrgMember = membership?.data?.state === 'active';
             } catch (error) {
-              // User is not an org member
-              console.log(`${issueCreator} is not an organization member - closing issue`);
-              
-              // Add a comment explaining why the issue is being closed
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-                body: `Hi @${issueCreator},\n\nThank you for your interest in the Open Home Foundation goals!\n\nThis repository is restricted to Open Home Foundation staff and authorized contributors only. Community members cannot directly create goals.\n\n**How to contribute your ideas:**\n1. 🚀 Submit your ideas to the relevant project's feature request channels\n2. 🗳️ Vote and discuss on existing feature requests\n3. 👀 The product team regularly reviews popular requests and creates roadmap opportunities based on community needs\n\nFor feature request links, please refer to the [roadmap repository](https://github.com/OpenHomeFoundation/roadmap).\n\nIf you believe you should have access to create goals, please contact the Open Home Foundation team.\n\n*This issue will now be automatically closed.*`
-              });
-              
-              // Close the issue
-              await github.rest.issues.update({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-                state: 'closed',
-                state_reason: 'not_planned'
-              });
-              
-              // Add labels to indicate why it was closed
+              if (error.status !== 404) {
+                core.setFailed(`Failed to verify organization membership for ${issueCreator}: ${error.message}`);
+                throw error;
+              }
+            }
+
+            if (isOrgMember) {
+              console.log(`${issueCreator} is an organization member - issue will remain open`);
+              return;
+            }
+
+            // User is not an org member
+            console.log(`${issueCreator} is not an organization member - closing issue`);
+            
+            // Add a comment explaining why the issue is being closed
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `Hi @${issueCreator},\n\nThank you for your interest in the Open Home Foundation goals!\n\nThis repository is restricted to Open Home Foundation staff and authorized contributors only. Community members cannot directly create goals.\n\n**How to contribute your ideas:**\n1. 🚀 Submit your ideas to the relevant project's feature request channels\n2. 🗳️ Vote and discuss on existing feature requests\n3. 👀 The product team regularly reviews popular requests and creates roadmap opportunities based on community needs\n\nFor feature request links, please refer to the [roadmap repository](https://github.com/OpenHomeFoundation/roadmap).\n\nIf you believe you should have access to create goals, please contact the Open Home Foundation team.\n\n*This issue will now be automatically closed.*`
+            });
+            
+            // Close the issue
+            await github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              state: 'closed',
+              state_reason: 'not_planned'
+            });
+            
+            // Add labels to indicate why it was closed
+            try {
               await github.rest.issues.addLabels({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: context.issue.number,
                 labels: ['non-member', 'auto-closed']
               });
+            } catch (error) {
+              console.log(`Unable to apply labels to issue #${context.issue.number}: ${error.message}`);
             }
