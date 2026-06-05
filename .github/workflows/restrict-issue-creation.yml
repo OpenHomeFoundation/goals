@@ -1,0 +1,92 @@
+name: Restrict issue creation to organization members
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  check-membership:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Check if issue creator is org member
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issueCreator = context.payload.issue.user.login;
+            const org = context.repo.owner;
+
+            console.log(`Checking if ${issueCreator} is a member of ${org}`);
+
+            let isOrgMember = false;
+
+            try {
+              // Check membership (includes private org membership with appropriate permissions)
+              const membership = await github.rest.orgs.getMembershipForUser({
+                org: org,
+                username: issueCreator
+              });
+              isOrgMember = membership?.data?.state === 'active';
+            } catch (error) {
+              if (error.status !== 404) {
+                core.setFailed(`Failed to verify organization membership for ${issueCreator}: ${error.message}`);
+                throw error;
+              }
+            }
+
+            if (isOrgMember) {
+              console.log(`${issueCreator} is an organization member - issue will remain open`);
+              return;
+            }
+
+            // User is not an org member
+            console.log(`${issueCreator} is not an organization member - closing issue`);
+
+            const commentBody = [
+              `Hi @${issueCreator},`,
+              '',
+              'Thank you for your interest in the Open Home Foundation goals!',
+              '',
+              'This repository is restricted to Open Home Foundation staff and authorized contributors only. Community members cannot directly create goals.',
+              '',
+              '**How to contribute your ideas:**',
+              "1. 🚀 Submit your ideas to the relevant project's feature request channels",
+              '2. 🗳️ Vote and discuss on existing feature requests',
+              '3. 👀 The product team regularly reviews popular requests and creates roadmap opportunities based on community needs',
+              '',
+              'For feature request links, please refer to the [roadmap repository](https://github.com/OpenHomeFoundation/roadmap).',
+              '',
+              'If you believe you should have access to create goals, please contact the Open Home Foundation team.',
+              '',
+              '*This issue will now be automatically closed.*'
+            ].join('\n');
+            
+            // Add a comment explaining why the issue is being closed
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: commentBody
+            });
+            
+            // Close the issue
+            await github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              state: 'closed',
+              state_reason: 'not_planned'
+            });
+            
+            // Add labels to indicate why it was closed
+            try {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                labels: ['non-member', 'auto-closed']
+              });
+            } catch (error) {
+              console.log(`Unable to apply labels to issue #${context.issue.number}: ${error.message}`);
+            }
